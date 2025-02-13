@@ -2,7 +2,8 @@ import { ipcMain, app, BrowserWindow } from "electron";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { exec } from "child_process";
+import { spawn } from "child_process";
+import process from "node:process";
 createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 process.env.APP_ROOT = path.join(__dirname, "..");
@@ -19,9 +20,7 @@ function createWindow() {
     webPreferences: {
       preload: path.join(__dirname, "preload.mjs"),
       contextIsolation: true,
-      // Ativa o context isolation
       nodeIntegration: false,
-      // Desativa a integração direta do Node.js no frontend
       webSecurity: false
     }
   });
@@ -34,28 +33,61 @@ function createWindow() {
     win.loadFile(path.join(RENDERER_DIST, "index.html"));
   }
 }
-ipcMain.handle("enhanceImage", async (_, inputPath) => {
-  const outputPath = inputPath.replace(/(\.\w+)$/, "_enhanced$1");
-  const esrganExecutable = path.join(
-    process.env.APP_ROOT,
-    "real-esrgan",
-    "realesrgan-ncnn-vulkan.exe"
-  );
-  const command = `"${esrganExecutable}" -i "${inputPath}" -o "${outputPath}"`;
-  console.log("iniciando Melhoria da imagens: " + inputPath);
-  return new Promise((resolve, reject) => {
-    exec(command, (error, stdout, stderr) => {
-      if (error) {
-        console.error("Error executing Real-ESRGAN:", stderr);
-        reject(stderr);
-      } else {
-        console.log("Real-ESRGAN output:", stdout);
-        const filePath = `file://${outputPath}`;
-        resolve(filePath);
+function parseProgressFromLine(line) {
+  const regex = /(\d+(?:[.,]\d+)?)\s*%/;
+  const match = line.match(regex);
+  if (match) {
+    const progress = parseFloat(match[1].replace(",", "."));
+    return progress >= 0 && progress <= 100 ? progress : null;
+  }
+  return null;
+}
+function handleProcessData(data, event) {
+  const lines = data.toString().split(/\r?\n/);
+  for (let line of lines) {
+    line = line.trim();
+    if (!line) continue;
+    if (line.includes("%")) {
+      const progress = parseProgressFromLine(line);
+      if (progress !== null) {
+        event.sender.send("enhance-progress", progress);
       }
+    }
+  }
+}
+ipcMain.handle(
+  "enhanceImage",
+  async (event, inputPath, selectedModel) => {
+    const outputPath = inputPath.replace(/(\.\w+)$/, `_enhanced$1`);
+    const esrganExecutable = path.join(
+      process.env.APP_ROOT,
+      "real-esrgan",
+      "realesrgan-ncnn-vulkan.exe"
+    );
+    const args = ["-i", inputPath, "-o", outputPath, "-n", selectedModel];
+    console.log("Iniciando melhoria da imagem:", inputPath);
+    event.sender.send("current-image-update", inputPath);
+    event.sender.send("enhance-progress", 0);
+    return new Promise((resolve, reject) => {
+      const childProcess = spawn(esrganExecutable, args);
+      childProcess.stdout.on("data", (data) => {
+        handleProcessData(data, event);
+      });
+      childProcess.stderr.on("data", (data) => {
+        handleProcessData(data, event);
+      });
+      childProcess.on("close", (code) => {
+        if (code === 0) {
+          console.log("Processo concluído!");
+          event.sender.send("enhance-progress", 100);
+          resolve(`file://${outputPath}`);
+        } else {
+          reject(`Processo falhou com código: ${code}`);
+        }
+      });
     });
-  });
-});
+  }
+);
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
     app.quit();

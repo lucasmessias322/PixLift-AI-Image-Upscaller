@@ -1,14 +1,14 @@
-// app.whenReady().then(createWindow)
-import { app, BrowserWindow, ipcMain } from "electron";
+import { app, BrowserWindow, ipcMain, IpcMainInvokeEvent } from "electron";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { exec } from "child_process";
+import { spawn } from "child_process";
+import process from "node:process";
 
 const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// The built directory structure
+// Configuração das pastas do projeto
 process.env.APP_ROOT = path.join(__dirname, "..");
 export const VITE_DEV_SERVER_URL = process.env["VITE_DEV_SERVER_URL"];
 export const MAIN_DIST = path.join(process.env.APP_ROOT, "dist-electron");
@@ -20,25 +20,28 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL
 
 let win: BrowserWindow | null;
 
+/**
+ * Cria a janela principal da aplicação.
+ */
 function createWindow() {
   win = new BrowserWindow({
     icon: path.join(process.env.VITE_PUBLIC, "electron-vite.svg"),
     minWidth: 800,
     minHeight: 600,
-
     webPreferences: {
       preload: path.join(__dirname, "preload.mjs"),
-      contextIsolation: true, // Ativa o context isolation
-      nodeIntegration: false, // Desativa a integração direta do Node.js no frontend
+      contextIsolation: true,
+      nodeIntegration: false,
       webSecurity: false,
     },
   });
 
-  // Test active push message to Renderer-process.
+  // Envia mensagem ao renderer quando a janela terminar de carregar
   win.webContents.on("did-finish-load", () => {
     win?.webContents.send("main-process-message", new Date().toLocaleString());
   });
 
+  // Carrega a URL do dev ou o arquivo HTML gerado
   if (VITE_DEV_SERVER_URL) {
     win.loadURL(VITE_DEV_SERVER_URL);
   } else {
@@ -46,33 +49,95 @@ function createWindow() {
   }
 }
 
-ipcMain.handle("enhanceImage", async (_, inputPath: string) => {
-  const outputPath = inputPath.replace(/(\.\w+)$/, "_enhanced$1");
-  const esrganExecutable = path.join(
-    process.env.APP_ROOT!,
-    "real-esrgan",
-    "realesrgan-ncnn-vulkan.exe"
-  );
+/**
+ * Extrai o valor de progresso de uma linha de texto.
+ * Retorna o número (entre 0 e 100) ou null se não encontrar.
+ *
+ * @param line Linha de texto contendo o progresso.
+ */
+function parseProgressFromLine(line: string): number | null {
+  const regex = /(\d+(?:[.,]\d+)?)\s*%/;
+  const match = line.match(regex);
+  if (match) {
+    const progress = parseFloat(match[1].replace(",", "."));
+    return progress >= 0 && progress <= 100 ? progress : null;
+  }
+  return null;
+}
 
-  const command = `"${esrganExecutable}" -i "${inputPath}" -o "${outputPath}"`;
-  console.log("iniciando Melhoria da imagens: " + inputPath);
-
-  return new Promise<string>((resolve, reject) => {
-    exec(command, (error, stdout, stderr) => {
-      if (error) {
-        console.error("Error executing Real-ESRGAN:", stderr);
-        reject(stderr);
-      } else {
-        console.log("Real-ESRGAN output:", stdout);
-        // Aqui, você pode ajustar o caminho para que ele seja acessível corretamente
-        const filePath = `file://${outputPath}`;
-        resolve(filePath); // Passar o caminho no formato file://
+/**
+ * Processa os dados de saída do processo e emite o progresso via IPC.
+ *
+ * @param data Dados recebidos (stdout/stderr) do processo.
+ * @param event Evento IPC para envio do progresso.
+ */
+function handleProcessData(data: Buffer | string, event: IpcMainInvokeEvent) {
+  const lines = data.toString().split(/\r?\n/);
+  for (let line of lines) {
+    line = line.trim();
+    if (!line) continue;
+    // Apenas processa linhas que contenham '%' indicando progresso
+    if (line.includes("%")) {
+      const progress = parseProgressFromLine(line);
+      if (progress !== null) {
+        event.sender.send("enhance-progress", progress);
       }
-    });
-  });
-});
+    }
+  }
+}
 
-// Quit when all windows are closed, except on macOS
+/**
+ * Manipulador IPC para a função de upscale da imagem.
+ * Executa o comando utilizando spawn e emite o progresso para o renderer.
+ */
+ipcMain.handle(
+  "enhanceImage",
+  async (
+    event: IpcMainInvokeEvent,
+    inputPath: string,
+    selectedModel: string
+  ) => {
+    // Define o caminho de saída da imagem
+    const outputPath = inputPath.replace(/(\.\w+)$/, `_enhanced$1`);
+
+    // Define o executável e os argumentos
+    const esrganExecutable = path.join(
+      process.env.APP_ROOT!,
+      "real-esrgan",
+      "realesrgan-ncnn-vulkan.exe"
+    );
+    const args = ["-i", inputPath, "-o", outputPath, "-n", selectedModel];
+
+    console.log("Iniciando melhoria da imagem:", inputPath);
+    event.sender.send("current-image-update", inputPath);
+    event.sender.send("enhance-progress", 0);
+    return new Promise<string>((resolve, reject) => {
+      // Inicia o processo com spawn
+      const childProcess = spawn(esrganExecutable, args);
+
+      // Lida com a saída padrão e erros em tempo real
+      childProcess.stdout.on("data", (data) => {
+        handleProcessData(data, event);
+      });
+      childProcess.stderr.on("data", (data) => {
+        handleProcessData(data, event);
+      });
+
+      // Quando o processo finalizar, garante que o progresso seja 100 em caso de sucesso
+      childProcess.on("close", (code) => {
+        if (code === 0) {
+          console.log("Processo concluído!");
+          event.sender.send("enhance-progress", 100);
+          resolve(`file://${outputPath}`);
+        } else {
+          reject(`Processo falhou com código: ${code}`);
+        }
+      });
+    });
+  }
+);
+
+// Eventos para controle do ciclo de vida da aplicação
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
     app.quit();

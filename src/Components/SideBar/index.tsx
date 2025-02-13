@@ -1,16 +1,22 @@
-import React, { useCallback, useState } from "react";
+
 import styled from "styled-components";
 
 interface sidebar {
   loading: boolean;
   handleEnhanceImages: any;
   originalImages: any;
+  selectedModel: string;
+  handleModelChange: (event: React.ChangeEvent<HTMLSelectElement>) => void;
+  
 }
 
 export default function SideBar({
   loading,
   handleEnhanceImages,
   originalImages,
+  selectedModel,
+  handleModelChange,
+ 
 }: sidebar) {
   return (
     <Container>
@@ -22,27 +28,33 @@ export default function SideBar({
       <ConfigsContainer>
         <SelectorWrapper>
           <label htmlFor="">Selecione um modelo de IA</label>
-          <Selector name="Models" id="models">
-            <option value="Real-ESRGAN">Real-ESRGAN</option>
-            {/* <option value="saab">Saab</option>
-            <option value="opel">Opel</option>
-            <option value="audi">Audi</option> */}
-          </Selector>
-        </SelectorWrapper>
-
-        <SelectorWrapper>
-          <label htmlFor="">Placa de video</label>
-          <Selector name="Models" id="models">
-            <option value="amd">AMD</option>
-            <option value="nvidea">NVIDIA</option>
-            <option value="opel">Sem placa de video</option>
-            
+          <Selector
+            name="Models"
+            id="models"
+            value={selectedModel}
+            onChange={handleModelChange}
+          >
+            <option value="esrgan-x4">
+              GENERAL PHOTO(Real-ESRGAN)
+            </option>
+            <option value="realesrgan-x4fast">
+              GENERAL PHOTO(FAST REAL ESRGAN)
+            </option>
+            <option value="remacri">
+              GENERAL PHOTO(REMACRI)
+            </option>
+            <option value="ultramix_balanced">
+              GENERAL PHOTO(ULTRAMIX BALANCED)
+            </option>
+            <option value="ultrasharp">
+              GENERAL PHOTO(ULTRASHARP)
+            </option>
           </Selector>
         </SelectorWrapper>
 
         <EnhanceButton
           onClick={handleEnhanceImages}
-          disabled={loading || originalImages.length === 0}
+          disabled={loading || originalImages.length === 0 || selectedModel == undefined}
         >
           {loading ? "Upscaling..." : "Upscale Images"}
         </EnhanceButton>
@@ -75,8 +87,6 @@ const LogoContainer = styled.div`
   align-items: center;
 `;
 
-
-
 const SelectorWrapper = styled.div`
   display: flex;
   flex-direction: column;
@@ -93,7 +103,7 @@ const Selector = styled.select`
     font-size: 16px;
   }
   margin: 5px 0px;
- `;
+`;
 // const ConfigsContainer = styled.div`
 //   display: flex;
 //   flex-direction: column;
@@ -113,7 +123,6 @@ const Selector = styled.select`
 //   &:hover {
 //     background-color: ${({ disabled }) => (disabled ? "#4F008F80" : "#5a5eff")};
 //   }
-
 
 //`;
 
@@ -139,4 +148,3 @@ const EnhanceButton = styled.button`
     background-color: ${({ disabled }) => (disabled ? "#4F008F80" : "#8c00ff")};
   }
 `;
-

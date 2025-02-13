@@ -24,5 +24,16 @@ electron.contextBridge.exposeInMainWorld("ipcRenderer", {
   // ...
 });
 electron.contextBridge.exposeInMainWorld("electronAPI", {
-  enhanceImage: (inputPath) => electron.ipcRenderer.invoke("enhanceImage", inputPath)
+  enhanceImage: (inputPath, selectedModel) => electron.ipcRenderer.invoke("enhanceImage", inputPath, selectedModel),
+  onEnhanceProgress: (callback) => {
+    electron.ipcRenderer.on("enhance-progress", (_, progress) => callback(progress));
+  },
+  removeEnhanceProgressListener: (callback) => {
+    electron.ipcRenderer.removeListener("enhance-progress", callback);
+  },
+  onCurrentImageUpdate: (callback) => electron.ipcRenderer.on(
+    "current-image-update",
+    (event, imagePath) => callback(imagePath)
+  ),
+  removeCurrentImageUpdateListener: (callback) => electron.ipcRenderer.removeListener("current-image-update", callback)
 });
