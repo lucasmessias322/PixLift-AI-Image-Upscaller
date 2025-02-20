@@ -32,12 +32,17 @@ let win: BrowserWindow | null;
 function createWindow() {
   win = new BrowserWindow({
     icon: path.join(process.env.VITE_PUBLIC, "electron-vite.svg"),
-    minWidth: 850,
-    minHeight: 600,
+    width: 1300,
+    height: 940,
+    minHeight: 500,
+    minWidth: 600,
+
+    backgroundColor: "#171717",
     webPreferences: {
       preload: path.join(__dirname, "preload.mjs"),
-      contextIsolation: true,
-      nodeIntegration: false,
+      //contextIsolation: true,
+      nodeIntegration: true,
+      nodeIntegrationInWorker: true,
       webSecurity: false,
     },
   });
@@ -158,14 +163,17 @@ ipcMain.handle(
     const folder = outputFolder || app.getPath("pictures");
     const baseName = path.basename(inputPath, path.extname(inputPath));
     const ext = path.extname(inputPath);
-    const outputPath = path.join(folder, `${baseName}_enhanced${ext}`);
+    const outputPath = path.join(folder, `${baseName}_${selectedModel}${ext}`);
 
     // Configuração do executável e argumentos
     const esrganExecutable = path.join(
       process.env.APP_ROOT!,
-      "real-esrgan",
+      "realesrgan-ncnn-vulkan-20220424-windows",
       "realesrgan-ncnn-vulkan.exe"
     );
+
+    console.log(selectedModel);
+
     const args = ["-i", inputPath, "-o", outputPath, "-n", selectedModel];
 
     console.log("Iniciando melhoria da imagem:", inputPath);

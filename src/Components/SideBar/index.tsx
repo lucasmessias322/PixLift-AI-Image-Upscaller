@@ -35,15 +35,16 @@ export default function SideBar({
             value={selectedModel}
             onChange={handleModelChange}
           >
-            <option value="esrgan-x4">GENERAL PHOTO(Real-ESRGAN)</option>
-            <option value="realesrgan-x4fast">
-              GENERAL PHOTO(FAST REAL ESRGAN)
+            <option value="realesrgan-x4plus">realesrgan-x4plus</option>
+            <option value="upscayl-lite-4x">upscayl-lite-4x</option>
+            <option value="realesrgan-x4fast">realesrgan-x4fast</option>
+
+            <option value="realesr-animevideov3-x4">
+              realesr-animevideov3-x4
             </option>
-            <option value="remacri">GENERAL PHOTO(REMACRI)</option>
-            <option value="ultramix_balanced">
-              GENERAL PHOTO(ULTRAMIX BALANCED)
+            <option value="realesr-animevideov3-x4">
+              realesr-animevideov3-x2
             </option>
-            <option value="ultrasharp">GENERAL PHOTO(ULTRASHARP)</option>
           </Selector>
         </SelectorWrapper>
 
