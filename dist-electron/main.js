@@ -1,4 +1,4 @@
-import { ipcMain, app, BrowserWindow } from "electron";
+import { ipcMain, app, dialog, BrowserWindow } from "electron";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
@@ -15,7 +15,7 @@ let win;
 function createWindow() {
   win = new BrowserWindow({
     icon: path.join(process.env.VITE_PUBLIC, "electron-vite.svg"),
-    minWidth: 800,
+    minWidth: 850,
     minHeight: 600,
     webPreferences: {
       preload: path.join(__dirname, "preload.mjs"),
@@ -24,6 +24,7 @@ function createWindow() {
       webSecurity: false
     }
   });
+  win.setMenuBarVisibility(false);
   win.webContents.on("did-finish-load", () => {
     win == null ? void 0 : win.webContents.send("main-process-message", (/* @__PURE__ */ new Date()).toLocaleString());
   });
@@ -57,8 +58,11 @@ function handleProcessData(data, event) {
 }
 ipcMain.handle(
   "enhanceImage",
-  async (event, inputPath, selectedModel) => {
-    const outputPath = inputPath.replace(/(\.\w+)$/, `_enhanced$1`);
+  async (event, inputPath, selectedModel, outputFolder) => {
+    const folder = outputFolder || app.getPath("pictures");
+    const baseName = path.basename(inputPath, path.extname(inputPath));
+    const ext = path.extname(inputPath);
+    const outputPath = path.join(folder, `${baseName}_enhanced${ext}`);
     const esrganExecutable = path.join(
       process.env.APP_ROOT,
       "real-esrgan",
@@ -88,6 +92,17 @@ ipcMain.handle(
     });
   }
 );
+ipcMain.handle("selectFolder", async () => {
+  const result = await dialog.showOpenDialog({
+    title: "Selecione a pasta para salvar a imagem melhorada",
+    properties: ["openDirectory"],
+    defaultPath: app.getPath("pictures")
+  });
+  if (!result.canceled && result.filePaths.length > 0) {
+    return result.filePaths[0];
+  }
+  return app.getPath("pictures");
+});
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
     app.quit();

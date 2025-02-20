@@ -81,12 +81,17 @@ const ComparisonWrapper = styled.div`
   overflow: hidden;
   margin: 20px auto;
   user-select: none;
+  border:10px solid white;
+  border-left:5px solid white;
+  border-right:5px solid white;
   
 `;
 
 const BaseImage = styled.img`
   width: 100%;
+  
   display: block;
+ 
 
 `;
 
@@ -109,9 +114,10 @@ const Divider = styled.div`
   position: absolute;
   top: 0;
   bottom: 0;
-  width: 3px;
-  background-color: #fff;
-  box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+  width: 4px;
+  background-color:  #ffffff;
+  //border-left: 2px solid white;
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.781);
   cursor: ew-resize;
   z-index: 10;
 `;
