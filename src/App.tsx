@@ -3,43 +3,63 @@ import styled from "styled-components";
 import SideBar from "./Components/SideBar";
 import ImageComparison from "./Components/ImageComparison";
 
-interface ConvertedImage {
+interface ImageItem {
   file: File;
-  enhancedPath: string;
+  enhancedPath?: string;
 }
 
 function App() {
   const [selectedModel, setSelectedModel] =
     useState<string>("realesrgan-x4plus");
-  const [pendingImages, setPendingImages] = useState<File[]>([]);
-  const [convertedImages, setConvertedImages] = useState<ConvertedImage[]>([]);
+  const [images, setImages] = useState<ImageItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [currentImage, setCurrentImage] = useState<string>("");
   const [progress, setProgress] = useState<string>("");
   const [selectedFolder, setSelectedFolder] = useState<string>("");
-
-  // Novo estado para controlar a imagem selecionada para comparação
   const [selectedComparison, setSelectedComparison] =
-    useState<ConvertedImage | null>(null);
+    useState<ImageItem | null>(null);
 
-  // Função para selecionar a pasta usando o canal IPC "selectFolder"
+  // Seleciona a pasta via canal IPC
   const handleSelectFolder = useCallback(async () => {
     const folder = await window.electronAPI.selectFolder();
     setSelectedFolder(folder);
   }, []);
 
-  // Manipula o evento de soltar arquivos, evitando duplicatas
+  // Permite selecionar múltiplas imagens via input (além do drop)
+  const handleFileInputChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const files = event.target.files;
+      if (files) {
+        const fileArray = Array.from(files);
+        const imageFiles = fileArray.filter((file) =>
+          file.type.startsWith("image/")
+        );
+        setImages((prev) => {
+          const newImages = imageFiles
+            .filter(
+              (file) => !prev.some((item) => item.file.path === file.path)
+            )
+            .map((file) => ({ file }));
+          // Adiciona as novas imagens no início do array
+          return [...newImages, ...prev];
+        });
+      }
+    },
+    []
+  );
+
+  // Drop de múltiplas imagens
   const handleDrop = useCallback((event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     const files = Array.from(event.dataTransfer.files);
     const imageFiles = files.filter((file) => file.type.startsWith("image/"));
     if (imageFiles.length > 0) {
-      setPendingImages((prev) => {
-        const newUniqueImages = imageFiles.filter(
-          (newFile) =>
-            !prev.some((existingFile) => existingFile.path === newFile.path)
-        );
-        return [...prev, ...newUniqueImages];
+      setImages((prev) => {
+        const newImages = imageFiles
+          .filter((file) => !prev.some((item) => item.file.path === file.path))
+          .map((file) => ({ file }));
+        // Adiciona as novas imagens no início do array
+        return [...newImages, ...prev];
       });
     }
   }, []);
@@ -51,35 +71,35 @@ function App() {
     []
   );
 
-  // Processa as imagens pendentes sequencialmente.
+  // Processa as imagens pendentes e atualiza cada item com o enhancedPath
   const handleEnhanceImages = useCallback(async () => {
-    if (pendingImages.length === 0) return;
+    const imagesToProcess = images.filter((item) => !item.enhancedPath);
+    if (imagesToProcess.length === 0) return;
     setLoading(true);
 
-    // Cria uma cópia das imagens pendentes para iterar
-    const imagesToProcess = [...pendingImages];
-
-    for (const file of imagesToProcess) {
+    for (const item of imagesToProcess) {
       try {
+        setCurrentImage(item.file.path);
         const enhancedPath = await window.electronAPI.enhanceImage(
-          file.path,
+          item.file.path,
           selectedModel,
           selectedFolder
         );
-        // Adiciona a imagem convertida à lista de comparação
-        setConvertedImages((prev) => [...prev, { file, enhancedPath }]);
-        // Remove a imagem convertida da lista de pendentes
-        setPendingImages((prev) => prev.filter((p) => p.path !== file.path));
+        setImages((prev) =>
+          prev.map((img) =>
+            img.file.path === item.file.path ? { ...img, enhancedPath } : img
+          )
+        );
       } catch (error) {
         console.error("Erro ao melhorar imagem:", error);
       }
     }
+    setCurrentImage("");
     setLoading(false);
-  }, [pendingImages, selectedModel, selectedFolder]);
+  }, [images, selectedModel, selectedFolder]);
 
-  // Permite remover manualmente uma imagem pendente
-  const handleRemoveImage = useCallback((index: number) => {
-    setPendingImages((prev) => prev.filter((_, i) => i !== index));
+  const handleRemoveImage = useCallback((filePath: string) => {
+    setImages((prev) => prev.filter((item) => item.file.path !== filePath));
   }, []);
 
   const handleModelChange = useCallback(
@@ -89,10 +109,8 @@ function App() {
     []
   );
 
-  // Listener para atualizar a imagem atual em processamento
   useEffect(() => {
     const handleCurrentImageUpdate = (imagePath: string) => {
-      console.log("Imagem atual em processamento:", imagePath);
       setCurrentImage(imagePath);
     };
     window.electronAPI.onCurrentImageUpdate(handleCurrentImageUpdate);
@@ -104,76 +122,80 @@ function App() {
   }, []);
 
   useEffect(() => {
-    const handleProgress = (progress: string) => {
-      console.log("Progresso recebido:", progress);
+    const handleProgressUpdate = (progress: string) => {
       setProgress(progress);
     };
-    window.electronAPI.onEnhanceProgress(handleProgress);
+    window.electronAPI.onEnhanceProgress(handleProgressUpdate);
     return () => {
-      window.electronAPI.removeEnhanceProgressListener(handleProgress);
+      window.electronAPI.removeEnhanceProgressListener(handleProgressUpdate);
     };
   }, []);
 
   return (
     <Container onDrop={handleDrop} onDragOver={handleDragOver}>
       <Content>
-        {pendingImages.length == 0 && convertedImages.length == 0 && (
+        {images.length === 0 && (
           <DropZone>
             <p>Arraste e solte imagens aqui</p>
+            <FileInput type="file" multiple onChange={handleFileInputChange} />
           </DropZone>
         )}
-        {pendingImages.length >0 &&
+
+        {images.length > 0 && (
           <Gallery>
-            <h2>Images to Upscale</h2>
             <ImagesContainer>
-              {pendingImages.map((file, index) => (
-                <ImageWrapper
-                  key={index}
-                  isBeingUpscaled={currentImage === file.path}
-                >
-                  <div className="ImagenAndRemoveBTN">
-                    <RemoveButton onClick={() => handleRemoveImage(index)}>
-                      X
-                    </RemoveButton>
-                    <Image
-                      draggable="false"
-                      src={URL.createObjectURL(file)}
-                      alt={`Uploaded ${index}`}
-                    />
-                  </div>
-                  {loading && currentImage === file.path && (
-                    <ImageProgreesBar>
-                      <progress
-                        id="progress-bar"
-                        value={progress}
-                        max="100"
-                      ></progress>
-                      <span>{progress}%</span>
-                    </ImageProgreesBar>
-                  )}
-                </ImageWrapper>
-              ))}
+              {images.map((item, index) =>
+                item.enhancedPath ? (
+                  // Imagem convertida – permanece na mesma posição
+                  <ImageConvertedWrapper
+                    key={index}
+                    onClick={() => setSelectedComparison(item)}
+                  >
+                    <ImageConverted draggable="false" src={item.enhancedPath} />
+                  </ImageConvertedWrapper>
+                ) : (
+                  // Imagem pendente – exibe botão de remover, e se estiver sendo processada, aplica blur somente na imagem
+                  <ImageWrapper
+                    key={index}
+                    isBeingUpscaled={loading && currentImage === item.file.path}
+                  >
+                    <div className="ImagenAndRemoveBTN">
+                      {!loading && (
+                        <RemoveButton
+                          onClick={() => handleRemoveImage(item.file.path)}
+                        >
+                          X
+                        </RemoveButton>
+                      )}
+                      <Image
+                        draggable="false"
+                        src={URL.createObjectURL(item.file)}
+                        alt={`Uploaded ${index}`}
+                        style={{
+                          filter:
+                            loading && currentImage === item.file.path
+                              ? "blur(5px)"
+                              : "none",
+                        }}
+                      />{" "}
+                      {loading && currentImage === item.file.path && (
+                        <ImageProgreesBar>
+                          <progress
+                            id="progress-bar"
+                            value={progress}
+                            max="100"
+                          ></progress>
+                          <span>{progress}%</span>
+                        </ImageProgreesBar>
+                      )}
+                    </div>
+                  </ImageWrapper>
+                )
+              )}
             </ImagesContainer>
           </Gallery>
-        }
-
-        {convertedImages.length > 0 && (
-          <ConvertedGallery>
-            <h2>Upscaled Images:</h2>
-            <ImageConvertedContainer>
-              {convertedImages.map((item, index) => (
-                <ImageConvertedWrapper
-                  key={index}
-                  onClick={() => setSelectedComparison(item)} // Ao clicar, abre o popup
-                >
-                  <ImageConverted draggable="false" src={item.enhancedPath} />
-                </ImageConvertedWrapper>
-              ))}
-            </ImageConvertedContainer>
-          </ConvertedGallery>
         )}
 
-        {/* Popup de comparação, renderizado condicionalmente */}
         {selectedComparison && (
           <ComparisonPopUp>
             <CloseButton onClick={() => setSelectedComparison(null)}>
@@ -181,7 +203,7 @@ function App() {
             </CloseButton>
             <ImageComparison
               originalSrc={URL.createObjectURL(selectedComparison.file)}
-              enhancedSrc={selectedComparison.enhancedPath}
+              enhancedSrc={selectedComparison.enhancedPath as string}
             />
           </ComparisonPopUp>
         )}
@@ -190,7 +212,7 @@ function App() {
       <SideBar
         loading={loading}
         handleEnhanceImages={handleEnhanceImages}
-        pendingImages={pendingImages}
+        pendingImages={images.filter((item) => !item.enhancedPath)}
         handleModelChange={handleModelChange}
         selectedModel={selectedModel}
         selectedFolder={selectedFolder}
@@ -202,7 +224,7 @@ function App() {
 
 export default App;
 
-/* Styled Components */
+// /* Styled Components */
 
 const Container = styled.div`
   display: flex;
@@ -215,7 +237,7 @@ const Content = styled.div`
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  position: relative; /* Necessário para posicionar o popup relativo a este container */
+  position: relative;
 `;
 
 const DropZone = styled.div`
@@ -227,6 +249,7 @@ const DropZone = styled.div`
   border-radius: 20px;
   background-color: transparent;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   margin: auto;
@@ -237,10 +260,11 @@ const DropZone = styled.div`
     font-weight: bold;
   }
 `;
-
+const FileInput = styled.input`
+  margin-top: 20px;
+`;
 const Gallery = styled.div`
-  //margin-bottom: 5px;
-
+  padding: 20px;
   h2 {
     padding: 10px;
     color: #af4dff;
@@ -257,15 +281,14 @@ const ImageWrapper = styled.div<{ isBeingUpscaled: boolean }>`
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: 215px;
-  height: 265px;
-  border-radius: 5px;
-  padding: 10px;
-  ${({ isBeingUpscaled }) =>
+  width: 250px;
+  height: 250px;
+
+  /* ${({ isBeingUpscaled }) =>
     isBeingUpscaled &&
     `
       background-color: #1f1e1e;
-  `};
+  `}; */
 
   div.ImagenAndRemoveBTN {
     display: flex;
@@ -275,44 +298,58 @@ const ImageWrapper = styled.div<{ isBeingUpscaled: boolean }>`
     height: 100%;
     position: relative;
   }
+
+  border: 5px solid #6e00c9;
+
+  border-left: 2.5px solid #6e00c9;
+  border-right: 2.5px solid #6e00c9;
 `;
 
 const ImageProgreesBar = styled.div`
+  position: absolute;
+  bottom: 5px;
+  left: 5px;
+  right: 5px;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  width: 100%;
-  padding: 10px 10px;
-
-  span {
-    text-align: center;
-    font-size: 14px;
-  }
+  justify-content: center;
+  background-color: rgba(0, 0, 0, 0.5);
+  padding: 5px;
+  border-radius: 5px;
 
   progress {
     width: 100%;
-    height: 3px;
-    border-radius: 0;
-    margin-bottom: 10px;
+    height: 8px;
+    border-radius: 5px;
   }
 
   progress::-webkit-progress-bar {
     background-color: #21023b;
-    border-radius: 0;
+    border-radius: 5px;
   }
 
   progress::-webkit-progress-value {
-    background-color: #6e00c9;
-    border-radius: 0;
+    background-color: #af4dff;
+    border-radius: 5px;
+  }
+
+  span {
+    margin-left: 5px;
+    color: #af4dff;
+    font-weight: bold;
+    font-size: 12px;
   }
 `;
 
 const Image = styled.img`
-  width: 200px;
-  height: 200px;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
-  border-radius: 5px;
-  border: 2px solid #6e00c9;
+
+  /* border-radius: 5px; */
+  ///padding: 5px;
+  /* border: 2px solid #6e00c9; */
+  filter: opacity(0.1);
 `;
 
 const RemoveButton = styled.button`
@@ -320,6 +357,7 @@ const RemoveButton = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
+  z-index: 9;
   top: 5px;
   right: 5px;
   height: 10px;
@@ -344,55 +382,32 @@ const RemoveButton = styled.button`
   }
 `;
 
-const ConvertedGallery = styled.div`
-  width: 100%;
-  display: flex;
-  flex-wrap: wrap;
-
-  h2 {
-    padding: 10px;
-    color: #af4dff;
-  }
-  // justify-content: center;
-  //margin: 0 auto;
-`;
-
-const ImageConvertedContainer = styled.div`
-  width: 100%;
-  height: 100%;
-  display: flex;
-  flex-wrap: wrap;
-
-  // justify-content: center;
-  gap: 5px;
-  padding: 15px 10px;
-`;
-
 const ImageConvertedWrapper = styled.div`
-  width: 100%;
-  @media (max-width: 900px) {
-    max-width: 200px;
-    max-height: 200px;
-  }
-  max-width: 250px;
-  max-height: 250px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 250px;
+  height: 250px;
   cursor: pointer;
+  border: 5px solid whitesmoke;
+  border-left: 2.5px solid whitesmoke;
+  border-right: 2.5px solid whitesmoke;
+
+  &:hover {
+    transition: 0.5s;
+    transform: scale(1.02);
+    // box-shadow: 2px 2px 2px 2px #000000ac;
+  }
 `;
 
 const ImageConverted = styled.img`
   width: 100%;
   height: 100%;
-  object-fit: cover;
-  border: 5px solid white;
-  border-left: 2px solid white;
-  border-right: 2px solid white;
 
-  &:hover {
-    transition: 0.5s;
-    border: 5px solid #af4dff;
-    border-left: 2px solid #af4dff;
-    border-right: 2px solid #af4dff;
-  }
+  object-fit: cover;
+  /* border: 5px solid white;
+  border-left: 2px solid white;
+  border-right: 2px solid white; */
 `;
 
 const ComparisonPopUp = styled.div`
@@ -409,15 +424,24 @@ const ComparisonPopUp = styled.div`
   padding: 20px;
 `;
 
-const CloseButton = styled.button`
+const CloseButton = styled.div`
   position: absolute;
-  top: 20px;
-  right: 20px;
-  z-index: 10000;
-  background-color: #6e00c9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9;
+  top: 60px;
+  right: 10px;
+  height: 10px;
+  width: 10px;
+  background-color: rgba(0, 0, 0, 0.61);
   color: white;
   border: none;
-  padding: 10px 15px;
-  border-radius: 5px;
+  padding: 15px;
+  border-radius: 100%;
   cursor: pointer;
+  font-size: 14px;
+  font-weight: bold;
+
+  background-color: #6e00c9;
 `;

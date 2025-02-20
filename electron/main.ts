@@ -94,7 +94,7 @@ function handleProcessData(data: Buffer | string, event: IpcMainInvokeEvent) {
     if (line.includes("%")) {
       const progress = parseProgressFromLine(line);
       if (progress !== null) {
-        event.sender.send("enhance-progress", progress);
+        event.sender.send("enhance-progress", progress.toFixed(2));
       }
     }
   }

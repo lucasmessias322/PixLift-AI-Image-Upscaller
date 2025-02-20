@@ -52,9 +52,13 @@ const ImageComparison: React.FC<ImageComparisonProps> = ({
 
   return (
     <ComparisonWrapper ref={containerRef}>
+      <span className="after">After</span>
+      <span className="before">Before</span>
       {/* Imagem original em segundo plano */}
       <BaseImage draggable="false" src={originalSrc} alt="Original" />
       {/* Imagem melhorada em primeiro plano, com clip que varia conforme o divider */}
+
+      
       <OverlayImage
         draggable="false"
         src={enhancedSrc}
@@ -76,23 +80,37 @@ export default ImageComparison;
 const ComparisonWrapper = styled.div`
   position: relative;
   width: 100%;
-  max-width: 600px;
   height: auto;
   overflow: hidden;
   margin: 20px auto;
   user-select: none;
-  border:10px solid white;
-  border-left:5px solid white;
-  border-right:5px solid white;
-  
+  border: 10px solid white;
+  border-left: 5px solid white;
+  border-right: 5px solid white;
+
+  span {
+    position: absolute;
+    color: #ffffff;
+    background-color: #0000006f;
+    font-size: 16px;
+    border-radius: 5px;
+    margin: 5px;
+    z-index: 99;
+    padding:5px 10px;
+    font-weight: bold;
+  }
+
+  span.before {
+  }
+
+  span.before {
+   right:0px;
+  }
 `;
 
 const BaseImage = styled.img`
   width: 100%;
-  
   display: block;
- 
-
 `;
 
 interface OverlayImageProps {
@@ -115,7 +133,7 @@ const Divider = styled.div`
   top: 0;
   bottom: 0;
   width: 4px;
-  background-color:  #ffffff;
+  background-color: #ffffff;
   //border-left: 2px solid white;
   box-shadow: 0 0 5px rgba(0, 0, 0, 0.781);
   cursor: ew-resize;

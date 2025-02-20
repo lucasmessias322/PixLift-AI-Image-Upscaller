@@ -77,8 +77,6 @@ const Container = styled.div`
   justify-content: flex-start;
 `;
 
-const Logo = styled.h1``;
-
 const LogoContainer = styled.div`
   display: flex;
   flex-direction: column;
