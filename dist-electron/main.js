@@ -19,6 +19,7 @@ function createWindow() {
     height: 940,
     minHeight: 500,
     minWidth: 600,
+    title: "PixLift",
     backgroundColor: "#171717",
     webPreferences: {
       preload: path.join(__dirname, "preload.mjs"),
@@ -67,8 +68,9 @@ ipcMain.handle(
     const baseName = path.basename(inputPath, path.extname(inputPath));
     const ext = path.extname(inputPath);
     const outputPath = path.join(folder, `${baseName}_${selectedModel}${ext}`);
+    const basePath = app.isPackaged ? process.resourcesPath : process.env.APP_ROOT;
     const esrganExecutable = path.join(
-      process.env.APP_ROOT,
+      basePath,
       "realesrgan-ncnn-vulkan-20220424-windows",
       "realesrgan-ncnn-vulkan.exe"
     );

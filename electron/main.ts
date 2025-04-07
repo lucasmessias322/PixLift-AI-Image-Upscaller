@@ -5,13 +5,12 @@ import {
   IpcMainInvokeEvent,
   dialog,
 } from "electron";
-import { createRequire } from "node:module";
+
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { spawn } from "child_process";
 import process from "node:process";
 
-const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Configuração das pastas do projeto
@@ -36,6 +35,7 @@ function createWindow() {
     height: 940,
     minHeight: 500,
     minWidth: 600,
+    title: "PixLift",
 
     backgroundColor: "#171717",
     webPreferences: {
@@ -100,57 +100,6 @@ function handleProcessData(data: Buffer | string, event: IpcMainInvokeEvent) {
   }
 }
 
-/**
- * Manipulador IPC para a função de upscale da imagem.
- * Executa o comando utilizando spawn e emite o progresso para o renderer.
-//  */
-// ipcMain.handle(
-//   "enhanceImage",
-//   async (
-//     event: IpcMainInvokeEvent,
-//     inputPath: string,
-//     selectedModel: string
-//   ) => {
-//     // Define o caminho de saída da imagem
-//     const outputPath = inputPath.replace(/(\.\w+)$/, `_enhanced$1`);
-
-//     // Define o executável e os argumentos
-//     const esrganExecutable = path.join(
-//       process.env.APP_ROOT!,
-//       "real-esrgan",
-//       "realesrgan-ncnn-vulkan.exe"
-//     );
-//     const args = ["-i", inputPath, "-o", outputPath, "-n", selectedModel];
-
-//     console.log("Iniciando melhoria da imagem:", inputPath);
-//     event.sender.send("current-image-update", inputPath);
-//     event.sender.send("enhance-progress", 0);
-//     return new Promise<string>((resolve, reject) => {
-//       // Inicia o processo com spawn
-//       const childProcess = spawn(esrganExecutable, args);
-
-//       // Lida com a saída padrão e erros em tempo real
-//       childProcess.stdout.on("data", (data) => {
-//         handleProcessData(data, event);
-//       });
-//       childProcess.stderr.on("data", (data) => {
-//         handleProcessData(data, event);
-//       });
-
-//       // Quando o processo finalizar, garante que o progresso seja 100 em caso de sucesso
-//       childProcess.on("close", (code) => {
-//         if (code === 0) {
-//           console.log("Processo concluído!");
-//           event.sender.send("enhance-progress", 100);
-//           resolve(`file://${outputPath}`);
-//         } else {
-//           reject(`Processo falhou com código: ${code}`);
-//         }
-//       });
-//     });
-//   }
-// );
-
 ipcMain.handle(
   "enhanceImage",
   async (
@@ -166,8 +115,11 @@ ipcMain.handle(
     const outputPath = path.join(folder, `${baseName}_${selectedModel}${ext}`);
 
     // Configuração do executável e argumentos
+    const basePath = app.isPackaged
+      ? process.resourcesPath
+      : process.env.APP_ROOT;
     const esrganExecutable = path.join(
-      process.env.APP_ROOT!,
+      basePath,
       "realesrgan-ncnn-vulkan-20220424-windows",
       "realesrgan-ncnn-vulkan.exe"
     );

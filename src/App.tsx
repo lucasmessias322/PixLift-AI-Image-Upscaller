@@ -137,7 +137,7 @@ function App() {
         {images.length === 0 && (
           <DropZone>
             <p>Arraste e solte imagens aqui</p>
-            <FileInput type="file" multiple onChange={handleFileInputChange} />
+            <FileInput type="file" accept="image/png, image/jpeg, image/jpg" multiple onChange={handleFileInputChange} />
           </DropZone>
         )}
 
