@@ -137,7 +137,12 @@ function App() {
         {images.length === 0 && (
           <DropZone>
             <p>Arraste e solte imagens aqui</p>
-            <FileInput type="file" accept="image/png, image/jpeg, image/jpg" multiple onChange={handleFileInputChange} />
+            <FileInput
+              type="file"
+              accept="image/png, image/jpeg, image/jpg"
+              multiple
+              onChange={handleFileInputChange}
+            />
           </DropZone>
         )}
 
@@ -198,13 +203,15 @@ function App() {
 
         {selectedComparison && (
           <ComparisonPopUp>
-            <CloseButton onClick={() => setSelectedComparison(null)}>
-              X
-            </CloseButton>
-            <ImageComparison
-              originalSrc={URL.createObjectURL(selectedComparison.file)}
-              enhancedSrc={selectedComparison.enhancedPath as string}
-            />
+            <div className="Wrapper">
+              <CloseButton onClick={() => setSelectedComparison(null)}>
+                X
+              </CloseButton>
+              <ImageComparison
+                originalSrc={URL.createObjectURL(selectedComparison.file)}
+                enhancedSrc={selectedComparison.enhancedPath as string}
+              />{" "}
+            </div>
           </ComparisonPopUp>
         )}
       </Content>
@@ -411,27 +418,32 @@ const ImageConverted = styled.img`
 `;
 
 const ComparisonPopUp = styled.div`
-  position: absolute;
+  position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
+
   background-color: #080808d5;
+  z-index: 9999;
+  div.Wrapper {
+    width: 100%;
+    height: 100%;
+    margin: 0 auto;
+    max-height: 500px;
+    max-width: 500px;
+  }
+`;
+
+const CloseButton = styled.div`
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 9999;
-  padding: 20px;
-`;
+  top: 15px;
+  right: 15px;
 
-const CloseButton = styled.div`
-  position: absolute;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 9;
-  top: 60px;
-  right: 10px;
   height: 10px;
   width: 10px;
   background-color: rgba(0, 0, 0, 0.61);

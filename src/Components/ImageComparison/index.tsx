@@ -82,7 +82,7 @@ const ComparisonWrapper = styled.div`
   width: 100%;
   height: auto;
   overflow: hidden;
-  margin: 20px auto;
+ // margin: 20px auto;
   user-select: none;
   border: 10px solid white;
   border-left: 5px solid white;
@@ -111,6 +111,7 @@ const ComparisonWrapper = styled.div`
 const BaseImage = styled.img`
   width: 100%;
   display: block;
+  object-fit: contain;
 `;
 
 interface OverlayImageProps {
