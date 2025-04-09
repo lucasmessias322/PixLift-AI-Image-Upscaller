@@ -12,7 +12,7 @@ import { spawn } from "child_process";
 import process from "node:process";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
+ 
 // Configuração das pastas do projeto
 process.env.APP_ROOT = path.join(__dirname, "..");
 export const VITE_DEV_SERVER_URL = process.env["VITE_DEV_SERVER_URL"];

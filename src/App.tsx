@@ -387,6 +387,7 @@ const RemoveButton = styled.button`
   ${ImageWrapper}:hover & {
     opacity: 1;
   }
+  z-index: 99999999999;
 `;
 
 const ImageConvertedWrapper = styled.div`
@@ -427,11 +428,15 @@ const ComparisonPopUp = styled.div`
   background-color: #080808d5;
   z-index: 9999;
   div.Wrapper {
+    /* display: flex;
+    justify-content: center; */
+    padding: 20px;
+
     width: 100%;
     height: 100%;
     margin: 0 auto;
-    max-height: 500px;
-    max-width: 500px;
+    max-height: 80%;
+    max-width: 80%;
   }
 `;
 

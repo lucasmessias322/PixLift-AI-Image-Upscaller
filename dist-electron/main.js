@@ -1,18 +1,16 @@
-import { ipcMain, app, dialog, BrowserWindow } from "electron";
-import { fileURLToPath } from "node:url";
-import path from "node:path";
-import { spawn } from "child_process";
-import process from "node:process";
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-process.env.APP_ROOT = path.join(__dirname, "..");
-const VITE_DEV_SERVER_URL = process.env["VITE_DEV_SERVER_URL"];
-const MAIN_DIST = path.join(process.env.APP_ROOT, "dist-electron");
-const RENDERER_DIST = path.join(process.env.APP_ROOT, "dist");
-process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, "public") : RENDERER_DIST;
-let win;
-function createWindow() {
-  win = new BrowserWindow({
-    icon: path.join(process.env.VITE_PUBLIC, "electron-vite.svg"),
+import { ipcMain as u, app as i, dialog as j, BrowserWindow as f } from "electron";
+import { fileURLToPath as v } from "node:url";
+import n from "node:path";
+import { spawn as x } from "child_process";
+import s from "node:process";
+const h = n.dirname(v(import.meta.url));
+s.env.APP_ROOT = n.join(h, "..");
+const m = s.env.VITE_DEV_SERVER_URL, U = n.join(s.env.APP_ROOT, "dist-electron"), P = n.join(s.env.APP_ROOT, "dist");
+s.env.VITE_PUBLIC = m ? n.join(s.env.APP_ROOT, "public") : P;
+let r;
+function w() {
+  r = new f({
+    icon: n.join(s.env.VITE_PUBLIC, "electron-vite.svg"),
     width: 1300,
     height: 940,
     minHeight: 500,
@@ -20,108 +18,71 @@ function createWindow() {
     title: "PixLift",
     backgroundColor: "#171717",
     webPreferences: {
-      preload: path.join(__dirname, "preload.mjs"),
+      preload: n.join(h, "preload.mjs"),
       //contextIsolation: true,
-      nodeIntegration: true,
-      nodeIntegrationInWorker: true,
-      webSecurity: false
+      nodeIntegration: !0,
+      nodeIntegrationInWorker: !0,
+      webSecurity: !1
     }
-  });
-  win.setMenuBarVisibility(false);
-  win.webContents.on("did-finish-load", () => {
-    win == null ? void 0 : win.webContents.send("main-process-message", (/* @__PURE__ */ new Date()).toLocaleString());
-  });
-  if (VITE_DEV_SERVER_URL) {
-    win.loadURL(VITE_DEV_SERVER_URL);
-  } else {
-    win.loadFile(path.join(RENDERER_DIST, "index.html"));
-  }
+  }), r.setMenuBarVisibility(!1), r.webContents.on("did-finish-load", () => {
+    r == null || r.webContents.send("main-process-message", (/* @__PURE__ */ new Date()).toLocaleString());
+  }), m ? r.loadURL(m) : r.loadFile(n.join(P, "index.html"));
 }
-function parseProgressFromLine(line) {
-  const regex = /(\d+(?:[.,]\d+)?)\s*%/;
-  const match = line.match(regex);
-  if (match) {
-    const progress = parseFloat(match[1].replace(",", "."));
-    return progress >= 0 && progress <= 100 ? progress : null;
+function D(e) {
+  const t = /(\d+(?:[.,]\d+)?)\s*%/, a = e.match(t);
+  if (a) {
+    const o = parseFloat(a[1].replace(",", "."));
+    return o >= 0 && o <= 100 ? o : null;
   }
   return null;
 }
-function handleProcessData(data, event) {
-  const lines = data.toString().split(/\r?\n/);
-  for (let line of lines) {
-    line = line.trim();
-    if (!line) continue;
-    if (line.includes("%")) {
-      const progress = parseProgressFromLine(line);
-      if (progress !== null) {
-        event.sender.send("enhance-progress", progress.toFixed(2));
-      }
+function p(e, t) {
+  const a = e.toString().split(/\r?\n/);
+  for (let o of a)
+    if (o = o.trim(), !!o && o.includes("%")) {
+      const c = D(o);
+      c !== null && t.sender.send("enhance-progress", c.toFixed(2));
     }
-  }
 }
-ipcMain.handle(
+u.handle(
   "enhanceImage",
-  async (event, inputPath, selectedModel, outputFolder) => {
-    const folder = outputFolder || app.getPath("pictures");
-    const baseName = path.basename(inputPath, path.extname(inputPath));
-    const ext = path.extname(inputPath);
-    const outputPath = path.join(folder, `${baseName}_${selectedModel}${ext}`);
-    const basePath = app.isPackaged ? process.resourcesPath : process.env.APP_ROOT;
-    const esrganExecutable = path.join(
-      basePath,
+  async (e, t, a, o) => {
+    const c = o || i.getPath("pictures"), _ = n.basename(t, n.extname(t)), R = n.extname(t), g = n.join(c, `${_}_${a}${R}`), E = i.isPackaged ? s.resourcesPath : s.env.APP_ROOT, I = n.join(
+      E,
       "realesrgan-ncnn-vulkan-20220424-windows",
       "realesrgan-ncnn-vulkan.exe"
     );
-    console.log(selectedModel);
-    const args = ["-i", inputPath, "-o", outputPath, "-n", selectedModel];
-    console.log("Iniciando melhoria da imagem:", inputPath);
-    event.sender.send("current-image-update", inputPath);
-    event.sender.send("enhance-progress", 0);
-    return new Promise((resolve, reject) => {
-      const childProcess = spawn(esrganExecutable, args);
-      childProcess.stdout.on("data", (data) => {
-        handleProcessData(data, event);
-      });
-      childProcess.stderr.on("data", (data) => {
-        handleProcessData(data, event);
-      });
-      childProcess.on("close", (code) => {
-        if (code === 0) {
-          console.log("Processo concluído!");
-          event.sender.send("enhance-progress", 100);
-          resolve(`file://${outputPath}`);
-        } else {
-          reject(`Processo falhou com código: ${code}`);
-        }
+    console.log(a);
+    const T = ["-i", t, "-o", g, "-n", a];
+    return console.log("Iniciando melhoria da imagem:", t), e.sender.send("current-image-update", t), e.sender.send("enhance-progress", 0), new Promise((b, O) => {
+      const d = x(I, T);
+      d.stdout.on("data", (l) => {
+        p(l, e);
+      }), d.stderr.on("data", (l) => {
+        p(l, e);
+      }), d.on("close", (l) => {
+        l === 0 ? (console.log("Processo concluído!"), e.sender.send("enhance-progress", 100), b(`file://${g}`)) : O(`Processo falhou com código: ${l}`);
       });
     });
   }
 );
-ipcMain.handle("selectFolder", async () => {
-  const result = await dialog.showOpenDialog({
+u.handle("selectFolder", async () => {
+  const e = await j.showOpenDialog({
     title: "Selecione a pasta para salvar a imagem melhorada",
     properties: ["openDirectory"],
-    defaultPath: app.getPath("pictures")
+    defaultPath: i.getPath("pictures")
   });
-  if (!result.canceled && result.filePaths.length > 0) {
-    return result.filePaths[0];
-  }
-  return app.getPath("pictures");
+  return !e.canceled && e.filePaths.length > 0 ? e.filePaths[0] : i.getPath("pictures");
 });
-app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") {
-    app.quit();
-    win = null;
-  }
+i.on("window-all-closed", () => {
+  s.platform !== "darwin" && (i.quit(), r = null);
 });
-app.on("activate", () => {
-  if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow();
-  }
+i.on("activate", () => {
+  f.getAllWindows().length === 0 && w();
 });
-app.whenReady().then(createWindow);
+i.whenReady().then(w);
 export {
-  MAIN_DIST,
-  RENDERER_DIST,
-  VITE_DEV_SERVER_URL
+  U as MAIN_DIST,
+  P as RENDERER_DIST,
+  m as VITE_DEV_SERVER_URL
 };
