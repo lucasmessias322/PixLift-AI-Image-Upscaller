@@ -1,26 +1,71 @@
-# Real-ESRGAN Upscaler Electron
+<h1 align="center">📸 PixLift – Upscale de Imagens com IA</h1>
 
-Este é um aplicativo desktop construído com [Electron](https://www.electronjs.org/) que permite realizar o upscale de imagens utilizando o Real-ESRGAN com aceleração via Vulkan. Com uma interface intuitiva de *drag and drop*, você pode aprimorar suas imagens, acompanhar o progresso em tempo real e comparar o resultado com a imagem original.
+<p align="center">
+  <strong>Aplicativo desktop para aumento de resolução de imagens usando Inteligência Artificial com Real-ESRGAN e Vulkan</strong>
+</p>
 
-## Funcionalidades
+<p align="center">
+  <img src="pixlift.png" alt="PixLift Screenshot" width="350px" />
+</p>
 
-- **Upscale de Imagens:** Aumente a resolução das suas imagens usando o modelo Real-ESRGAN.
-- **Aceleração Vulkan:** Processamento otimizado com Vulkan para maior performance.
-- **Interface de Drag and Drop:** Arraste e solte as imagens na área de trabalho para iniciar o processamento.
-- **Progresso em Tempo Real:** Visualize o andamento do processamento com uma barra de progresso.
-- **Comparação de Imagens:** Compare lado a lado a imagem original e a aprimorada por meio de um popup interativo.
-- **Seleção de Pasta de Saída:** Escolha onde deseja salvar as imagens aprimoradas.
+<hr/>
 
-## Pré-requisitos
+<h2>🚀 Funcionalidades</h2>
+<ul>
+  <li>Upscale de imagens com modelo Real-ESRGAN</li>
+  <li>Interface rápida e moderna com Vite + React + TypeScript</li>
+  <li>App desktop multiplataforma com Electron</li>
+  <li>Aceleração de GPU com Vulkan</li>
+</ul>
 
-- **Node.js** (versão 14 ou superior recomendada)
-- **npm** ou **Yarn**
-- O executável do [Real-ESRGAN Vulkan](https://github.com/xinntao/Real-ESRGAN) (normalmente `realesrgan-ncnn-vulkan.exe`), que deve estar localizado na pasta `real-esrgan` dentro do diretório raiz do projeto.
+<h2>🧩 Tecnologias Utilizadas</h2>
+<ul>
+  <li><strong>Electron.js</strong> – Aplicações desktop com tecnologias web</li>
+  <li><strong>Vite + React + TypeScript</strong> – UI rápida e moderna</li>
+  <li><strong>Real-ESRGAN-ncnn-vulkan</strong> – IA para *upscale* com aceleração Vulkan</li>
+  <li><strong>Electron Builder</strong> – Empacotamento para distribuição</li>
+</ul>
 
-## Instalação
+<h2>⚙️ Instalação</h2>
+<p><strong>Pré-requisitos:</strong> Node.js, Git, e Vulkan SDK instalado.</p>
 
-1. **Clone o repositório:**
+<pre><code># Clone o repositório
+git clone https://github.com/seuusuario/pixlift.git
+cd pixlift
 
-   ```bash
-   git clone https://github.com/lucasmessias322/PixLift-AI-Image-Upscaller.git
-   cd real-esrgan-upscaler-electron
+# Instale as dependências
+npm install
+
+# Rode em modo de desenvolvimento
+npm run dev
+</code></pre>
+
+<h2>📦 Build</h2>
+<pre><code># Gera a build de produção
+npm run build
+
+# Empacota o app com Electron
+npm run electron:build
+</code></pre>
+
+<h2>📁 Estrutura do Projeto</h2>
+<pre><code>pixlift/
+├── public/               # Arquivos estáticos
+├── src/
+│   ├── components/       # Componentes React
+│   ├── main/             # Código principal do Electron
+│   ├── renderer/         # Interface do usuário (React)
+├── realesrgan/           # Binários e modelos do Real-ESRGAN
+├── package.json
+└── vite.config.ts
+</code></pre>
+
+<h2>🧠 Créditos</h2>
+<ul>
+  <li><a href="https://github.com/xinntao/Real-ESRGAN-ncnn-vulkan" target="_blank">Real-ESRGAN-ncnn-vulkan</a> – por xinntao</li>
+  <li>Equipe do Vite, React, Electron</li>
+  <li>Comunidade de código aberto</li>
+</ul>
+
+<h2>📃 Licença</h2>
+<p>Este projeto está licenciado sob a <strong>MIT License</strong>. Veja o arquivo <code>LICENSE</code> para mais informações.</p>

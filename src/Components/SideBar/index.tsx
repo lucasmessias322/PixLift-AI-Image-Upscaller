@@ -53,14 +53,20 @@ export default function SideBar({
           {selectedFolder ? selectedFolder : "Selecionar pasta de saida"}
         </SelectFolderBTN>
 
-        <EnhanceButton
-          onClick={handleEnhanceImages}
-          disabled={
-            loading || pendingImages.length === 0 || selectedModel == undefined
-          }
-        >
-          {loading ? "Upscaling..." : "Upscale Images"}
-        </EnhanceButton>
+        {loading || pendingImages.length === 0 || selectedModel == undefined ? (
+          <></>
+        ) : (
+          <EnhanceButton
+            onClick={handleEnhanceImages}
+            disabled={
+              loading ||
+              pendingImages.length === 0 ||
+              selectedModel == undefined
+            }
+          >
+            {loading ? "Upscaling..." : "Upscale Images"}
+          </EnhanceButton>
+        )}
       </ConfigsContainer>
     </Container>
   );

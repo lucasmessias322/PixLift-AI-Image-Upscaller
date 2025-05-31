@@ -1,1 +1,34 @@
-"use strict";const r=require("electron");r.contextBridge.exposeInMainWorld("ipcRenderer",{on(...e){const[o,n]=e;return r.ipcRenderer.on(o,(t,...c)=>n(t,...c))},off(...e){const[o,...n]=e;return r.ipcRenderer.off(o,...n)},send(...e){const[o,...n]=e;return r.ipcRenderer.send(o,...n)},invoke(...e){const[o,...n]=e;return r.ipcRenderer.invoke(o,...n)}});r.contextBridge.exposeInMainWorld("electronAPI",{enhanceImage:(e,o,n)=>r.ipcRenderer.invoke("enhanceImage",e,o,n),selectFolder:()=>r.ipcRenderer.invoke("selectFolder"),onEnhanceProgress:e=>{r.ipcRenderer.on("enhance-progress",(o,n)=>e(n))},removeEnhanceProgressListener:e=>{r.ipcRenderer.removeListener("enhance-progress",e)},onCurrentImageUpdate:e=>r.ipcRenderer.on("current-image-update",(o,n)=>e(n)),removeCurrentImageUpdateListener:e=>r.ipcRenderer.removeListener("current-image-update",e)});
+"use strict";
+const electron = require("electron");
+electron.contextBridge.exposeInMainWorld("ipcRenderer", {
+  on(...args) {
+    const [channel, listener] = args;
+    return electron.ipcRenderer.on(channel, (event, ...args2) => listener(event, ...args2));
+  },
+  off(...args) {
+    const [channel, ...omit] = args;
+    return electron.ipcRenderer.off(channel, ...omit);
+  },
+  send(...args) {
+    const [channel, ...omit] = args;
+    return electron.ipcRenderer.send(channel, ...omit);
+  },
+  invoke(...args) {
+    const [channel, ...omit] = args;
+    return electron.ipcRenderer.invoke(channel, ...omit);
+  }
+});
+electron.contextBridge.exposeInMainWorld("electronAPI", {
+  // Agora enhanceImage aceita um terceiro parâmetro: selectedFolder
+  enhanceImage: (inputPath, selectedModel, selectedFolder) => electron.ipcRenderer.invoke("enhanceImage", inputPath, selectedModel, selectedFolder),
+  // Função para chamar o diálogo de seleção de pasta
+  selectFolder: () => electron.ipcRenderer.invoke("selectFolder"),
+  onEnhanceProgress: (callback) => {
+    electron.ipcRenderer.on("enhance-progress", (_, progress) => callback(progress));
+  },
+  removeEnhanceProgressListener: (callback) => {
+    electron.ipcRenderer.removeListener("enhance-progress", callback);
+  },
+  onCurrentImageUpdate: (callback) => electron.ipcRenderer.on("current-image-update", (event, imagePath) => callback(imagePath)),
+  removeCurrentImageUpdateListener: (callback) => electron.ipcRenderer.removeListener("current-image-update", callback)
+});

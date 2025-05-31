@@ -1,16 +1,23 @@
-import { ipcMain as u, app as i, dialog as j, BrowserWindow as f } from "electron";
-import { fileURLToPath as v } from "node:url";
-import n from "node:path";
-import { spawn as x } from "child_process";
-import s from "node:process";
-const h = n.dirname(v(import.meta.url));
-s.env.APP_ROOT = n.join(h, "..");
-const m = s.env.VITE_DEV_SERVER_URL, U = n.join(s.env.APP_ROOT, "dist-electron"), P = n.join(s.env.APP_ROOT, "dist");
-s.env.VITE_PUBLIC = m ? n.join(s.env.APP_ROOT, "public") : P;
-let r;
-function w() {
-  r = new f({
-    icon: n.join(s.env.VITE_PUBLIC, "electron-vite.svg"),
+import { ipcMain, app, dialog, BrowserWindow } from "electron";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
+import { execFile } from "child_process";
+import { createInterface } from "node:readline";
+import process from "node:process";
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+process.env.APP_ROOT = path.join(__dirname, "..");
+const VITE_DEV_SERVER_URL = process.env["VITE_DEV_SERVER_URL"];
+const MAIN_DIST = path.join(process.env.APP_ROOT, "dist-electron");
+const RENDERER_DIST = path.join(process.env.APP_ROOT, "dist");
+process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, "public") : RENDERER_DIST;
+let win;
+let busy = false;
+function createWindow() {
+  win = new BrowserWindow({
+    icon: path.join(
+      process.env.VITE_PUBLIC,
+      "logo_for_PixLift_AI_image_upscale_software-removebg-preview.png"
+    ),
     width: 1300,
     height: 940,
     minHeight: 500,
@@ -18,71 +25,116 @@ function w() {
     title: "PixLift",
     backgroundColor: "#171717",
     webPreferences: {
-      preload: n.join(h, "preload.mjs"),
-      //contextIsolation: true,
-      nodeIntegration: !0,
-      nodeIntegrationInWorker: !0,
-      webSecurity: !1
+      preload: path.join(__dirname, "preload.mjs"),
+      contextIsolation: true,
+      nodeIntegration: false,
+      webSecurity: false
     }
-  }), r.setMenuBarVisibility(!1), r.webContents.on("did-finish-load", () => {
-    r == null || r.webContents.send("main-process-message", (/* @__PURE__ */ new Date()).toLocaleString());
-  }), m ? r.loadURL(m) : r.loadFile(n.join(P, "index.html"));
+  });
+  win.setMenuBarVisibility(false);
+  win.webContents.on("did-finish-load", () => {
+    win == null ? void 0 : win.webContents.send("main-process-message", (/* @__PURE__ */ new Date()).toLocaleString());
+  });
+  if (VITE_DEV_SERVER_URL) {
+    win.loadURL(VITE_DEV_SERVER_URL);
+  } else {
+    win.loadFile(path.join(RENDERER_DIST, "index.html"));
+  }
 }
-function D(e) {
-  const t = /(\d+(?:[.,]\d+)?)\s*%/, a = e.match(t);
-  if (a) {
-    const o = parseFloat(a[1].replace(",", "."));
-    return o >= 0 && o <= 100 ? o : null;
+function parseProgressFromLine(line) {
+  const regex = /(\d+(?:[.,]\d+)?)\s*%/;
+  const match = line.match(regex);
+  if (match) {
+    const val = parseFloat(match[1].replace(",", "."));
+    return val >= 0 && val <= 100 ? val : null;
   }
   return null;
 }
-function p(e, t) {
-  const a = e.toString().split(/\r?\n/);
-  for (let o of a)
-    if (o = o.trim(), !!o && o.includes("%")) {
-      const c = D(o);
-      c !== null && t.sender.send("enhance-progress", c.toFixed(2));
-    }
-}
-u.handle(
+ipcMain.handle(
   "enhanceImage",
-  async (e, t, a, o) => {
-    const c = o || i.getPath("pictures"), _ = n.basename(t, n.extname(t)), R = n.extname(t), g = n.join(c, `${_}_${a}${R}`), E = i.isPackaged ? s.resourcesPath : s.env.APP_ROOT, I = n.join(
-      E,
-      "realesrgan-ncnn-vulkan-20220424-windows",
-      "realesrgan-ncnn-vulkan.exe"
-    );
-    console.log(a);
-    const T = ["-i", t, "-o", g, "-n", a];
-    return console.log("Iniciando melhoria da imagem:", t), e.sender.send("current-image-update", t), e.sender.send("enhance-progress", 0), new Promise((b, O) => {
-      const d = x(I, T);
-      d.stdout.on("data", (l) => {
-        p(l, e);
-      }), d.stderr.on("data", (l) => {
-        p(l, e);
-      }), d.on("close", (l) => {
-        l === 0 ? (console.log("Processo concluído!"), e.sender.send("enhance-progress", 100), b(`file://${g}`)) : O(`Processo falhou com código: ${l}`);
+  async (event, inputPath, selectedModel, outputFolder) => {
+    if (busy) {
+      throw new Error("Já existe um processo em andamento");
+    }
+    busy = true;
+    try {
+      const folder = outputFolder || path.dirname(inputPath);
+      const baseName = path.basename(inputPath, path.extname(inputPath));
+      const ext = path.extname(inputPath);
+      const outputPath = path.join(
+        folder,
+        `${baseName}_${selectedModel}${ext}`
+      );
+      const basePath = app.isPackaged ? process.resourcesPath : process.env.APP_ROOT;
+      const esrganExecutable = path.join(
+        basePath,
+        "realesrgan-ncnn-vulkan-20220424-windows",
+        "realesrgan-ncnn-vulkan.exe"
+      );
+      const args = ["-i", inputPath, "-o", outputPath, "-n", selectedModel];
+      console.log("Iniciando melhoria da imagem:", inputPath);
+      event.sender.send("current-image-update", inputPath);
+      event.sender.send("enhance-progress", 0);
+      return await new Promise((resolve, reject) => {
+        const child = execFile(esrganExecutable, args, { windowsHide: true });
+        let lastSent = 0;
+        const sendProgress = (p) => {
+          const now = Date.now();
+          if (now - lastSent > 200) {
+            event.sender.send("enhance-progress", p.toFixed(2));
+            lastSent = now;
+          }
+        };
+        const rlOut = createInterface({ input: child.stdout });
+        rlOut.on("line", (line) => {
+          const p = parseProgressFromLine(line.trim());
+          if (p !== null) sendProgress(p);
+        });
+        const rlErr = createInterface({ input: child.stderr });
+        rlErr.on("line", (line) => {
+          const p = parseProgressFromLine(line.trim());
+          if (p !== null) sendProgress(p);
+        });
+        child.on("close", (code) => {
+          if (code === 0) {
+            event.sender.send("enhance-progress", 100);
+            resolve(`file://${outputPath}`);
+          } else {
+            reject(`Processo falhou com código: ${code}`);
+          }
+        });
+        child.on("error", (err) => reject(err.message));
       });
-    });
+    } finally {
+      busy = false;
+    }
   }
 );
-u.handle("selectFolder", async () => {
-  const e = await j.showOpenDialog({
+ipcMain.handle("selectFolder", async () => {
+  const result = await dialog.showOpenDialog({
     title: "Selecione a pasta para salvar a imagem melhorada",
     properties: ["openDirectory"],
-    defaultPath: i.getPath("pictures")
+    defaultPath: app.getPath("pictures")
   });
-  return !e.canceled && e.filePaths.length > 0 ? e.filePaths[0] : i.getPath("pictures");
+  if (!result.canceled && result.filePaths.length > 0) {
+    return result.filePaths[0];
+  }
+  return app.getPath("pictures");
 });
-i.on("window-all-closed", () => {
-  s.platform !== "darwin" && (i.quit(), r = null);
+app.on("window-all-closed", () => {
+  if (process.platform !== "darwin") {
+    app.quit();
+    win = null;
+  }
 });
-i.on("activate", () => {
-  f.getAllWindows().length === 0 && w();
+app.on("activate", () => {
+  if (BrowserWindow.getAllWindows().length === 0) {
+    createWindow();
+  }
 });
-i.whenReady().then(w);
+app.whenReady().then(createWindow);
 export {
-  U as MAIN_DIST,
-  P as RENDERER_DIST,
-  m as VITE_DEV_SERVER_URL
+  MAIN_DIST,
+  RENDERER_DIST,
+  VITE_DEV_SERVER_URL
 };
