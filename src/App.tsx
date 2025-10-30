@@ -38,7 +38,8 @@ function App() {
             )
             .map((file) => ({ file }));
           // Adiciona as novas imagens no início do array
-          return [...newImages, ...prev];
+          return [...prev, ...newImages];
+
         });
       }
     },
@@ -56,7 +57,8 @@ function App() {
           .filter((file) => !prev.some((item) => item.file.path === file.path))
           .map((file) => ({ file }));
         // Adiciona as novas imagens no início do array
-        return [...newImages, ...prev];
+       return [...prev, ...newImages];
+
       });
     }
   }, []);

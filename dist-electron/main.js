@@ -16,7 +16,7 @@ function createWindow() {
   win = new BrowserWindow({
     icon: path.join(
       process.env.VITE_PUBLIC,
-      "logo_for_PixLift_AI_image_upscale_software-removebg-preview.png"
+      "logo.png"
     ),
     width: 1300,
     height: 940,
